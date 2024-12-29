@@ -53,7 +53,8 @@ body{
     border: 2px solid black;
     border-radius: 5px;
     text-align: right;
-    background-color: #97a73f
+    background-color: #97a73f;
+    font-size: 24px;
 }
 
 
