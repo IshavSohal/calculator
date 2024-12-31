@@ -18,11 +18,9 @@ const multiply = (x, y) => x * y;
 const divide = (x, y) => x / y;
 
 const operate = (x, y, operator) => {
-    console.log(" ");
-    console.log("operate()");
-    console.log(x);
-    console.log(y);
-    console.log(operator);
+    if (y === undefined) {
+        return +x;
+    }
     switch (operator) {
         case "+":
             return add(+x, +y);
@@ -32,12 +30,11 @@ const operate = (x, y, operator) => {
             return multiply(+x, +y);
         case "/":
             if (+y !== 0) {
-                console.log("not 0, good");
                 return divide(+x, +y);
             }
         case " ":
-            if (x !== undefined && y === undefined) {
-                return x;
+            if (x && y === "") {
+                return +x;
             }
     }
 };
@@ -56,7 +53,7 @@ digitButtons.forEach((button) => {
 });
 
 signChangeButton.addEventListener("click", () => {
-    if (!errorState && latestOperand() !== "" && latestOperand() !== "0") {
+    if (!errorState && +latestOperand() !== 0) {
         const operatorList = display.value.split(operator);
         const operandsExceptLast = operands.join("").trim();
         if (operator === "-") {
@@ -76,7 +73,7 @@ signChangeButton.addEventListener("click", () => {
 });
 
 decimalButton.addEventListener("click", () => {
-    // should only be applied when the current operand does not contain a decimal already
+    // should only be applied when the current operand does not already contain a decimal
     if (!errorState && !latestOperand().includes(".")) {
         const operandsExceptLast = operands.join("").trim();
         const lastOperand = (latestOperand() === "" ? "0" : latestOperand()) + ".";
@@ -91,16 +88,22 @@ operatorButtons.forEach((button) => {
             // if ERROR is on screen, user should not be allowed to enter an operator
             // if the result of an operation is on the screen, user should be allowed to follow
             // it with an operator
-            if (errorState) {
-                display.value = "";
-                errorState = false;
+            if (!errorState) {
+                // If an operator is being replaced, then there is no operation to evaluate.
+                // An operator is being replaced when the last operand is empty, and the most recent
+                // entry into the display is an operator
+                if (latestOperand() !== "") {
+                    evalOperation();
+                    operands = [display.value];
+                } else {
+                    if (operator !== " ") {
+                        display.value = operands.join("");
+                    }
+                }
+                display.value += button.innerText;
+                operator = button.innerText;
+                resultState = false;
             }
-
-            evalOperation();
-            operands = [display.value];
-            display.value += button.innerText;
-            operator = button.innerText;
-            resultState = false;
         });
     }
 });
@@ -115,23 +118,19 @@ clearButton.addEventListener("click", () => {
 const latestOperand = () => display.value.split(operator).at(-1);
 
 const evalOperation = () => {
-    // nothing to evaluate if error or result is on the screen
-    if (!(errorState || resultState)) {
+    if (!errorState) {
         operands.push(latestOperand());
         const validOperands = operands.reduce(
             (allNumeric, current) => allNumeric && !isNaN(current) && !isNaN(parseFloat(current)),
             true
         );
 
-        if (validOperands && operands.length === 2) {
-            console.log(operator);
-            // we must evaluate the operation
+        if (validOperands) {
             const operationRes = operate(operands[0], operands[1], operator);
-            console.log(operationRes);
             if (operationRes === undefined) {
                 return false;
             }
-            display.value = operationRes;
+            display.value = Math.round(operationRes * 100000) / 100000;
             operator = " ";
             operands = [];
             resultState = true;
@@ -144,15 +143,24 @@ const evalOperation = () => {
 
 equalButton.addEventListener("click", () => {
     if (!evalOperation()) {
-        errorState = true;
         display.value = "ERROR";
         operands = [];
         operator = " ";
+        errorState = true;
     }
 });
 
 backspaceButton.addEventListener("click", () => {
     if (!(errorState || resultState)) {
+        // Check if the current operator was erased, and if so update the operator variable
+        // Also, clear the operands array, so that when evalOperation() is called again, it has
+        // an operands array that is not dependant on what the (now deleted) operand detected as the
+        // operand that preceded it
+        if (latestOperand() === "") {
+            operator = " ";
+            operands = [];
+        }
+
         display.value = display.value.substr(0, display.value.length - 1);
         if (display.value === "") {
             display.value = "0";
